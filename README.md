@@ -16,6 +16,11 @@ h="google.se" && for i in {1..255}; do ping -t $i $h -c1 -n | grep From ; if [ $
 h="google.se" && for ip in $(for i in {1..255}; do ping -t $i $h -c1 -n | grep From | awk '{print $2}'; if [ ${PIPESTATUS[1]} -ne 0 ] ; then break ; fi ; done) ; do ping -c1 $ip | grep from ; done
 ```
 
+## Self signed cert
+```
+openssl req -x509 -newkey rsa:4096 -keyout ssl/key.pem -out ssl/cert.pem -sha256 -days 365 -subj "/C=US/ST=CA/O=MyOrg" -passout "pass:$(pwgen -N1 96 | tee ssl/pass.txt)"
+```
+
 ## Upgrading shell
 Ctrl + z, `stty raw -echo` `fg` enter, enter
 ```
