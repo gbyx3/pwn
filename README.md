@@ -21,6 +21,16 @@ h="google.se" && for ip in $(for i in {1..255}; do ping -t $i $h -c1 -n | grep F
 openssl req -x509 -newkey rsa:4096 -keyout ssl/key.pem -out ssl/cert.pem -sha256 -days 365 -subj "/C=US/ST=CA/O=MyOrg" -passout "pass:$(pwgen -N1 96 | tee ssl/pass.txt)"
 ```
 
+## OSINT
+### Get Linkedin users
+```
+# https://www.linkedin.com/company/<corp>/people/
+var users = document.getElementsByClassName("org-people-profile-card__profile-title");
+Array.from(users).forEach(function(user) {
+  console.log(user.innerText);
+});
+```
+
 ## Upgrading shell
 Ctrl + z, `stty raw -echo` `fg` enter, enter
 ```
