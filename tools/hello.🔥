@@ -1,0 +1,7 @@
+fn say_it(place: String) -> String:
+    return "Hello " + place
+
+fn main():
+    let place: String = "World"
+    let h = say_it(place)
+    print(h)
