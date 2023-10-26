@@ -16,6 +16,11 @@ h="google.se" && for i in {1..255}; do ping -t $i $h -c1 -n | grep From ; if [ $
 h="google.se" && for ip in $(for i in {1..255}; do ping -t $i $h -c1 -n | grep From | awk '{print $2}'; if [ ${PIPESTATUS[1]} -ne 0 ] ; then break ; fi ; done) ; do ping -c1 $ip | grep from ; done
 ```
 
+### LDAP
+```
+LDAPTLS_REQCERT=never ldapsearch -o ldif-wrap=no -D <USER>@<NETBIOS> -W -H ldap://<AD.DOMAIN.TLD> -b "dc=ad,dc=<DOMAIN>,dc=<TLD>" -s sub -x -ZZ "(&(objectClass=user)(sAMAccountName=<sAM>))"
+```
+
 ## Shodan
 ```
 jq -r 'select(.domains | any(. == "domain.tld")) | {domains, ip_str, product, port, number_vulns: (.vulns | length)}' data.json | jq -s 'sort_by(.port)'
