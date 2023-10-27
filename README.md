@@ -31,6 +31,19 @@ jq -r 'select(.domains | any(. == "domain.tld")) | {domains, ip_str, product, po
 openssl req -x509 -newkey rsa:4096 -keyout ssl/key.pem -out ssl/cert.pem -sha256 -days 365 -subj "/C=US/ST=CA/O=MyOrg" -passout "pass:$(pwgen -N1 96 | tee ssl/pass.txt)"
 ```
 
+## HTTPS Server
+```
+import http.server
+import ssl
+
+lhost = "0.0.0.0"
+lport = 443
+server_address = (lhost, lport)
+httpd = http.server.HTTPServer(server_address, http.server.SimpleHTTPRequestHandler)
+httpd.socket = ssl.wrap_socket(httpd.socket, server_side=True, certfile="ssl/cert.pem", keyfile="ssl/key.pem", ssl_version=ssl.PROTOCOL_TLS)
+httpd.serve_forever()
+```
+
 ## OSINT
 ### Get Linkedin users
 ```
