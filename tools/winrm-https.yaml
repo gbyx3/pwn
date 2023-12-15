@@ -1,0 +1,76 @@
+# Example usage:
+# ansible-playbook -i 10.0.4.202, cert.yml
+
+---
+- hosts: all
+  become: True
+  gather_facts: False
+  vars:
+    ansible_connection: "psrp"
+    ansible_host: ""
+    ansible_port: 5985
+    ansible_user: ""
+    ansible_password: ""
+    ansible_become_method: "runas"
+    ansible_become_user: ""
+    ansible_become_password: ""
+    ansible_psrp_protocol: "http"
+    ansible_psrp_cert_validation: ignore
+    ansible_psrp_ignore_proxy: yes
+
+  tasks:
+    - name: Run basic PowerShell script
+      vars:
+      ansible.windows.win_powershell:
+          script: |
+            Write-Output "Remove curret HTTPS configuration"
+            $HTTPS_Listener = Get-ChildItem WSMan:\Localhost\listener | Where-Object {$_.Keys -Contains "Transport=HTTPS"}
+            if ($HTTPS_Listener -eq $null){
+              Write-Output "No listener on https, skipping remove step..."}
+            else {
+              Write-Output "Removing HTTPS Listener"
+              try {
+              Get-ChildItem "WSMan:\Localhost\listener" | Where-Object {$_.Keys -Contains "Transport=HTTPS"} | Remove-Item -recurse
+              }
+              catch {
+                Write-Output "Failed to delete HTTPS listener, exiting"
+                break
+              }
+            }
+            Write-Output "Determine Certificate common name"
+            $HOSTNAME = (($env:computername).ToLower())
+            $DOMAIN = (Get-WmiObject Win32_ComputerSystem | Select-Object -ExpandProperty Domain).ToLower()
+            if ($DOMAIN -eq "workgroup" ){
+              $FQDN = "$HOSTNAME"
+            }
+            else {
+              $FQDN = "$HOSTNAME.$DOMAIN"
+            }
+            $CERT = Get-ChildItem -Path Cert:\LocalMachine\My\ | Where-Object { ($_.Issuer -eq "CN=$FQDN") -and ($_.Subject -eq "CN=$FQDN") }
+            Write-Output "Remove existing certs"
+            if ($CERT -ne $null) { $CERT | Remove-Item }
+            Write-Output "Create new cert"
+            $PFX = New-SelfSignedCertificate -CertstoreLocation Cert:\LocalMachine\My -DnsName $FQDN
+            New-Item -Path WSMan:\LocalHost\Listener -Address * -Transport HTTPS -Hostname $FQDN -CertificateThumbPrint $PFX.Thumbprint -Port "5986" -force
+
+
+    - name: Restart WinRM
+      ignore_unreachable: True
+      ignore_errors: True
+      ansible.windows.win_powershell:
+          script: |
+            Restart-Service WinRM
+
+
+    - name: Give WinRM a chance to restart
+      pause:
+        seconds: 3
+
+
+    - name: Verify HTTPS
+      vars:
+        ansible_port: 5986
+        ansible_psrp_protocol: "https"
+      ansible.windows.win_powershell:
+          script: |
+            Get-ChildItem WSMan:\Localhost\listener | ConvertTo-Json -Dept 1
