@@ -1,5 +1,9 @@
+# This playbook will configure WinRM to use HTTPS on port 5986
+# It will also configure the firewall to allow inbound connections on port 5986
+# It will also configure the firewall to allow inbound connections on port 5986 for the public profile if the variable public_fw is set to true
+#
 # Example usage:
-# ansible-playbook -i 10.0.4.202, cert.yml
+# ansible-playbook -i 10.0.4.202, cert.yml -e "public_fw=true" -e "restart_delay=2"
 
 ---
 - hosts: all
