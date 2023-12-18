@@ -21,54 +21,78 @@
     ansible_psrp_protocol: "http"
     ansible_psrp_cert_validation: ignore
     ansible_psrp_ignore_proxy: yes
-
   tasks:
-    - name: Run basic PowerShell script
+    - name: Configure new https listener
       vars:
       ansible.windows.win_powershell:
-          script: |
-            Write-Output "Remove curret HTTPS configuration"
-            $HTTPS_Listener = Get-ChildItem WSMan:\Localhost\listener | Where-Object {$_.Keys -Contains "Transport=HTTPS"}
-            if ($HTTPS_Listener -eq $null){
-              Write-Output "No listener on https, skipping remove step..."}
-            else {
-              Write-Output "Removing HTTPS Listener"
-              try {
-              Get-ChildItem "WSMan:\Localhost\listener" | Where-Object {$_.Keys -Contains "Transport=HTTPS"} | Remove-Item -recurse
-              }
-              catch {
-                Write-Output "Failed to delete HTTPS listener, exiting"
-                break
-              }
+        script: |
+          $HTTPS_Listener = Get-ChildItem WSMan:\Localhost\listener | Where-Object {$_.Keys -Contains "Transport=HTTPS"}
+          if ($HTTPS_Listener -ne $null){
+            try {
+            Get-ChildItem "WSMan:\Localhost\listener" | Where-Object {$_.Keys -Contains "Transport=HTTPS"} | Remove-Item -recurse
             }
-            Write-Output "Determine Certificate common name"
-            $HOSTNAME = (($env:computername).ToLower())
-            $DOMAIN = (Get-WmiObject Win32_ComputerSystem | Select-Object -ExpandProperty Domain).ToLower()
-            if ($DOMAIN -eq "workgroup" ){
-              $FQDN = "$HOSTNAME"
+            catch {
+              break
             }
-            else {
-              $FQDN = "$HOSTNAME.$DOMAIN"
-            }
-            $CERT = Get-ChildItem -Path Cert:\LocalMachine\My\ | Where-Object { ($_.Issuer -eq "CN=$FQDN") -and ($_.Subject -eq "CN=$FQDN") }
-            Write-Output "Remove existing certs"
-            if ($CERT -ne $null) { $CERT | Remove-Item }
-            Write-Output "Create new cert"
-            $PFX = New-SelfSignedCertificate -CertstoreLocation Cert:\LocalMachine\My -DnsName $FQDN
-            New-Item -Path WSMan:\LocalHost\Listener -Address * -Transport HTTPS -Hostname $FQDN -CertificateThumbPrint $PFX.Thumbprint -Port "5986" -force
+          }
+          $HOSTNAME = (($env:computername).ToLower())
+          $DOMAIN = (Get-WmiObject Win32_ComputerSystem | Select-Object -ExpandProperty Domain).ToLower()
+          if ($DOMAIN -eq "workgroup" ){
+            $FQDN = "$HOSTNAME"
+          }
+          else {
+            $FQDN = "$HOSTNAME.$DOMAIN"
+          }
+          $CERT = Get-ChildItem -Path Cert:\LocalMachine\My\ | Where-Object { ($_.Issuer -eq "CN=$FQDN") -and ($_.Subject -eq "CN=$FQDN") }
+          if ($CERT -ne $null) { $CERT | Remove-Item }
+          $PFX = New-SelfSignedCertificate -CertstoreLocation Cert:\LocalMachine\My -DnsName $FQDN
+          New-Item -Path WSMan:\LocalHost\Listener `
+            -Address * `
+            -Transport HTTPS `
+            -Hostname $FQDN `
+            -CertificateThumbPrint $PFX.Thumbprint `
+            -Port "5986" `
+            -force
+
+
+    - name: Configure firewall
+      ansible.windows.win_powershell:
+        script: |
+          New-NetFirewallRule -Name "WINRM-HTTPS-In-TCP" `
+            -DisplayName "Windows Remote Management (HTTPS-In)" `
+            -Description "Inbound rule for Windows Remote Management. [TCP 5986]" `
+            -Group "Windows Remote Management" `
+            -Program "System" `
+            -Protocol TCP `
+            -LocalPort "5986" `
+            -Action Allow `
+            -Profile Domain,Private
+
+    - name: Configure public firewall
+      ansible.windows.win_powershell:
+        script: |
+          New-NetFirewallRule -Name "WINRM-HTTPS-In-TCP-PUBLIC" `
+            -DisplayName "Windows Remote Management (HTTPS-In)" `
+            -Description "Inbound rule for Windows Remote Management. [TCP 5986]" `
+            -Group "Windows Remote Management" `
+            -Program "System" `
+            -Protocol TCP `
+            -LocalPort "5986" `
+            -Action Allow `
+            -Profile Public
+      when: public_fw|default(false) | bool
 
 
     - name: Restart WinRM
-      ignore_unreachable: True
       ignore_errors: True
       ansible.windows.win_powershell:
-          script: |
-            Restart-Service WinRM
+        script: |
+          Restart-Service WinRM
 
 
     - name: Give WinRM a chance to restart
       pause:
-        seconds: 3
+        seconds: "{{ restart_delay | default (3) }}"
 
 
     - name: Verify HTTPS
@@ -76,5 +100,5 @@
         ansible_port: 5986
         ansible_psrp_protocol: "https"
       ansible.windows.win_powershell:
-          script: |
-            Get-ChildItem WSMan:\Localhost\listener | ConvertTo-Json -Dept 1
+        script: |
+          Get-ChildItem WSMan:\Localhost\listener | ConvertTo-Json -Dept 1
