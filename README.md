@@ -68,3 +68,11 @@ script /dev/null -c bash
 ```
 python3 -c 'import pty;pty.spawn("/bin/bash")'
 ```
+
+# protect
+## Windows
+### Firewall
+Block incomming connections on specific interface
+```ps
+ New-NetFirewallRule -DisplayName "Block inbount on WAN" -Direction Inbound -Action Block -InterfaceAlias wan
+ ```
