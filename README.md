@@ -54,7 +54,7 @@ httpd.serve_forever()
 ### Get Linkedin users
 ```
 # https://www.linkedin.com/company/<corp>/people/
-var users = document.getElementsByClassName("org-people-profile-card__profile-title");
+var users = document.getElementsByClassName("ember-view lt-line-clamp lt-line-clamp--single-line");
 Array.from(users).forEach(function(user) {
   console.log(user.innerText);
 });
