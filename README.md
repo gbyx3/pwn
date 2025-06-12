@@ -52,6 +52,45 @@ httpd.serve_forever()
 
 ## OSINT
 ### Get Linkedin users
+```js
+let isRunning = true;
+let userArray = [];
+
+function getRandomDelay() {
+    return Math.floor(Math.random() * (3000 - 2000 + 1)) + 2000;
+}
+
+function clickButtonWithDelay() {
+    if (!isRunning) {
+        console.log('Process stopped! Collecting users...');
+        collectUsers();
+        return;
+    }
+    let buttons = document.getElementsByClassName("artdeco-button artdeco-button--muted artdeco-button--1 artdeco-button--full artdeco-button--secondary ember-view scaffold-finite-scroll__load-button");
+    if (buttons.length > 0) {
+        buttons[0].click();
+        console.log('Clicked the button with ID:', buttons[0].id);
+        let delay = getRandomDelay();
+        console.log('Waiting for ' + delay + 'ms before next click...');
+        setTimeout(clickButtonWithDelay, delay);
+    } else {
+        console.log('No more buttons found! Collecting users...');
+        isRunning = false;
+        collectUsers();
+    }
+}
+
+function collectUsers() {
+    let users = document.getElementsByClassName("ember-view lt-line-clamp lt-line-clamp--single-line");
+    Array.from(users).forEach(function(user) {
+        userArray.push(user.innerText.trim());
+    });
+    console.log('Collected usernames:', userArray);
+}
+
+clickButtonWithDelay();
+console.log('To stop the script, type "isRunning = false;" in the console and press Enter.');
+```
 ```
 # https://www.linkedin.com/company/<corp>/people/
 var users = document.getElementsByClassName("ember-view lt-line-clamp lt-line-clamp--single-line");
