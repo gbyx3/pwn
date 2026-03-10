@@ -38,9 +38,13 @@ import ssl
 
 lhost = "0.0.0.0"
 lport = 443
-server_address = (lhost, lport)
-httpd = http.server.HTTPServer(server_address, http.server.SimpleHTTPRequestHandler)
-httpd.socket = ssl.wrap_socket(httpd.socket, server_side=True, certfile="ssl/cert.pem", keyfile="ssl/key.pem", ssl_version=ssl.PROTOCOL_TLS)
+
+httpd = http.server.HTTPServer((lhost, lport), http.server.SimpleHTTPRequestHandler)
+
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context.load_cert_chain("ssl/cert.pem", "ssl/key.pem")
+
+httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
 httpd.serve_forever()
 ```
 
